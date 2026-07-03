@@ -4,26 +4,29 @@ import { useDispatch } from 'react-redux';
 import { useForm, Controller } from 'react-hook-form';
 import { Button, TextInput, Text } from 'react-native-paper';
 import { AppDispatch } from '../../redux/store';
-import { login } from '../../redux/slices/authSlice';
+import { signup } from '../../redux/slices/authSlice';
 import { Colors, Typography } from '../../constants';
-import { LoginPayload } from '../../types';
+import { SignupPayload } from '../../types';
 
-const LoginScreen: React.FC = () => {
+const SignupScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [isLoading, setIsLoading] = useState(false);
-  const { control, handleSubmit, formState: { errors } } = useForm<LoginPayload>({
+  const { control, handleSubmit, formState: { errors }, watch } = useForm<SignupPayload>({
     defaultValues: {
       email: '',
       password: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
     },
   });
 
-  const onSubmit = async (data: LoginPayload) => {
+  const onSubmit = async (data: SignupPayload) => {
     try {
       setIsLoading(true);
-      await dispatch(login(data)).unwrap();
+      await dispatch(signup(data)).unwrap();
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Signup failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -36,11 +39,41 @@ const LoginScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: Colors.primary }]}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+          <Text style={[styles.title, { color: Colors.primary }]}>Create Account</Text>
+          <Text style={styles.subtitle}>Join JD Career Talks today</Text>
         </View>
 
         <View style={styles.form}>
+          <Controller
+            control={control}
+            name="firstName"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label="First Name"
+                value={value}
+                onChangeText={onChange}
+                mode="outlined"
+                style={styles.input}
+                error={!!errors.firstName}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="lastName"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label="Last Name"
+                value={value}
+                onChangeText={onChange}
+                mode="outlined"
+                style={styles.input}
+                error={!!errors.lastName}
+              />
+            )}
+          />
+
           <Controller
             control={control}
             name="email"
@@ -57,7 +90,6 @@ const LoginScreen: React.FC = () => {
               />
             )}
           />
-          {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
 
           <Controller
             control={control}
@@ -74,7 +106,22 @@ const LoginScreen: React.FC = () => {
               />
             )}
           />
-          {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+
+          <Controller
+            control={control}
+            name="phone"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label="Phone (Optional)"
+                value={value}
+                onChangeText={onChange}
+                mode="outlined"
+                keyboardType="phone-pad"
+                style={styles.input}
+                error={!!errors.phone}
+              />
+            )}
+          />
 
           <Button
             mode="contained"
@@ -84,7 +131,7 @@ const LoginScreen: React.FC = () => {
             style={styles.button}
             labelStyle={styles.buttonLabel}
           >
-            Sign In
+            Sign Up
           </Button>
         </View>
       </ScrollView>
@@ -117,16 +164,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   input: {
-    marginBottom: 16,
-  },
-  errorText: {
-    ...Typography.caption,
-    color: Colors.error,
-    marginTop: -12,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   button: {
-    marginTop: 16,
+    marginTop: 24,
     paddingVertical: 8,
   },
   buttonLabel: {
@@ -134,4 +175,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen;
+export default SignupScreen;
