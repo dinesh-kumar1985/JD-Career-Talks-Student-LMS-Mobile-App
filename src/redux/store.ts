@@ -1,11 +1,10 @@
-// Redux Store Configuration
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import coursesReducer from './slices/coursesSlice';
 import enrollmentsReducer from './slices/enrollmentsSlice';
 import lessonsReducer from './slices/lessonsSlice';
 import notificationsReducer from './slices/notificationsSlice';
-import userReducer from './slices/userSlice';
+import paymentReducer from './slices/paymentSlice';
 
 export const store = configureStore({
   reducer: {
@@ -14,14 +13,8 @@ export const store = configureStore({
     enrollments: enrollmentsReducer,
     lessons: lessonsReducer,
     notifications: notificationsReducer,
-    user: userReducer,
+    payment: paymentReducer,
   },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: {
-        ignoredActions: ['auth/fetchProfile/fulfilled', 'auth/login/fulfilled'],
-      },
-    }),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -1,16 +1,8 @@
-// Redux Auth Slice
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { User, AuthToken, LoginCredentials, SignupData } from '../../types';
-import { apiClient } from '../../services/api/client';
-import { tokenService } from '../../services/storage/tokenService';
-
-interface AuthState {
-  user: User | null;
-  token: AuthToken | null;
-  isLoading: boolean;
-  error: string | null;
-  isAuthenticated: boolean;
-}
+import { AuthState, User, AuthToken, LoginPayload, SignupPayload } from '../../types';
+import { authAPI } from '../../services/api/endpoints';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StorageKeys } from '../../constants';
 
 const initialState: AuthState = {
   user: null,
@@ -20,71 +12,83 @@ const initialState: AuthState = {
   isAuthenticated: false,
 };
 
-// Async Thunks
-export const loginUser = createAsyncThunk(
+export const login = createAsyncThunk(
   'auth/login',
-  async (credentials: LoginCredentials, { rejectWithValue }) => {
+  async (payload: LoginPayload, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/api/auth/login', credentials);
-      const { access_token, refresh_token, token_type, expires_in } = response.data;
+      const response = await authAPI.login(payload);
+      const { user, tokens } = response.data;
 
-      // Store tokens
-      await tokenService.saveAccessToken(access_token);
-      await tokenService.saveRefreshToken(refresh_token);
+      await AsyncStorage.setItem(StorageKeys.ACCESS_TOKEN, tokens.accessToken);
+      await AsyncStorage.setItem(StorageKeys.REFRESH_TOKEN, tokens.refreshToken);
+      await AsyncStorage.setItem(StorageKeys.USER_DATA, JSON.stringify(user));
 
-      return {
-        token: {
-          accessToken: access_token,
-          refreshToken: refresh_token,
-          expiresIn: expires_in,
-          tokenType: token_type,
-        },
-      };
+      return { user, tokens };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Login failed');
     }
   }
 );
 
-export const signupUser = createAsyncThunk(
+export const signup = createAsyncThunk(
   'auth/signup',
-  async (data: SignupData, { rejectWithValue }) => {
+  async (payload: SignupPayload, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/api/auth/register', data);
-      return response.data;
+      const response = await authAPI.signup(payload);
+      const { user, tokens } = response.data;
+
+      await AsyncStorage.setItem(StorageKeys.ACCESS_TOKEN, tokens.accessToken);
+      await AsyncStorage.setItem(StorageKeys.REFRESH_TOKEN, tokens.refreshToken);
+      await AsyncStorage.setItem(StorageKeys.USER_DATA, JSON.stringify(user));
+
+      return { user, tokens };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Signup failed');
     }
   }
 );
 
-export const fetchUserProfile = createAsyncThunk(
-  'auth/fetchProfile',
+export const checkAuth = createAsyncThunk(
+  'auth/checkAuth',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get('/api/users/profile');
-      return response.data;
+      const accessToken = await AsyncStorage.getItem(StorageKeys.ACCESS_TOKEN);
+      const userData = await AsyncStorage.getItem(StorageKeys.USER_DATA);
+
+      if (accessToken && userData) {
+        return {
+          user: JSON.parse(userData),
+          tokens: {
+            accessToken,
+            refreshToken: '',
+            expiresIn: 0,
+          },
+        };
+      }
+
+      return rejectWithValue('No auth data found');
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch profile');
+      return rejectWithValue(error.message);
     }
   }
 );
 
-export const logoutUser = createAsyncThunk(
+export const logout = createAsyncThunk(
   'auth/logout',
   async (_, { rejectWithValue }) => {
     try {
-      await apiClient.post('/api/auth/logout');
-      await tokenService.clearTokens();
-      return true;
+      await authAPI.logout();
+      await AsyncStorage.removeItem(StorageKeys.ACCESS_TOKEN);
+      await AsyncStorage.removeItem(StorageKeys.REFRESH_TOKEN);
+      await AsyncStorage.removeItem(StorageKeys.USER_DATA);
+
+      return null;
     } catch (error: any) {
-      await tokenService.clearTokens();
-      return true;
+      return rejectWithValue(error.response?.data?.message || 'Logout failed');
     }
   }
 );
 
-// Slice
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -92,58 +96,55 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
-    resetAuth: (state) => {
-      return initialState;
-    },
   },
   extraReducers: (builder) => {
-    // Login
-    builder.addCase(loginUser.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
-    });
-    builder.addCase(loginUser.fulfilled, (state, action: PayloadAction<any>) => {
-      state.isLoading = false;
-      state.token = action.payload.token;
-      state.isAuthenticated = true;
-    });
-    builder.addCase(loginUser.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-
-    // Signup
-    builder.addCase(signupUser.pending, (state) => {
-      state.isLoading = true;
-      state.error = null;
-    });
-    builder.addCase(signupUser.fulfilled, (state) => {
-      state.isLoading = false;
-    });
-    builder.addCase(signupUser.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-
-    // Fetch Profile
-    builder.addCase(fetchUserProfile.pending, (state) => {
-      state.isLoading = true;
-    });
-    builder.addCase(fetchUserProfile.fulfilled, (state, action: PayloadAction<{ data: User }>) => {
-      state.isLoading = false;
-      state.user = action.payload.data;
-    });
-    builder.addCase(fetchUserProfile.rejected, (state, action) => {
-      state.isLoading = false;
-      state.error = action.payload as string;
-    });
-
-    // Logout
-    builder.addCase(logoutUser.fulfilled, (state) => {
-      return initialState;
-    });
+    builder
+      .addCase(login.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(login.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.token = action.payload.tokens;
+        state.error = null;
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(signup.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(signup.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.token = action.payload.tokens;
+        state.error = null;
+      })
+      .addCase(signup.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(checkAuth.fulfilled, (state, action) => {
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        state.token = action.payload.tokens;
+      })
+      .addCase(checkAuth.rejected, (state) => {
+        state.isAuthenticated = false;
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.isAuthenticated = false;
+        state.user = null;
+        state.token = null;
+        state.error = null;
+      });
   },
 });
 
-export const { clearError, resetAuth } = authSlice.actions;
+export const { clearError } = authSlice.actions;
 export default authSlice.reducer;
