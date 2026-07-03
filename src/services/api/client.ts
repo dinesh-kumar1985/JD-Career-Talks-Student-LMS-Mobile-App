@@ -1,8 +1,6 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL, API_TIMEOUT, StorageKeys, RETRY_CONFIG } from '../../constants';
-import { store } from '../../redux/store';
-import { logout } from '../../redux/slices/authSlice';
 
 interface RequestConfig {
   retries?: number;
@@ -83,8 +81,6 @@ class APIClient {
               this.isRefreshing = false;
               await AsyncStorage.removeItem(StorageKeys.ACCESS_TOKEN);
               await AsyncStorage.removeItem(StorageKeys.REFRESH_TOKEN);
-              
-              store.dispatch(logout());
               
               return Promise.reject(refreshError);
             }

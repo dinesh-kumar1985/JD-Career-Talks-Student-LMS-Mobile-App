@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { CoursesState, Course, CourseDetail } from '../../types';
+import { CoursesState } from '../../types';
 import { coursesAPI } from '../../services/api/endpoints';
 
 const initialState: CoursesState = {

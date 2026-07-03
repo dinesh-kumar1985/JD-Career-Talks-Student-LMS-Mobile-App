@@ -1,5 +1,5 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { AuthState, User, AuthToken, LoginPayload, SignupPayload } from '../../types';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { AuthState, User, LoginPayload, SignupPayload } from '../../types';
 import { authAPI } from '../../services/api/endpoints';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StorageKeys } from '../../constants';
